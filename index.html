@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Autômato de Matrizes</title>
+<style>
+body{margin:0;background:#0b1017;color:#edf4fb;font:16px system-ui,Segoe UI,sans-serif}main{max-width:1100px;margin:auto;padding:24px}h1{margin-top:0}button,select{padding:9px;border-radius:8px;border:1px solid #33465d;background:#142131;color:#fff;margin:4px;cursor:pointer}.panel{background:#141c27;border:1px solid #29384a;border-radius:14px;padding:16px}.toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:16px}.board{display:grid;grid-template-columns:repeat(32,1fr);gap:2px;max-width:720px;aspect-ratio:1}.cell{display:grid;place-items:center;min-width:0;aspect-ratio:1;border:1px solid #263648;border-radius:2px;font-size:clamp(7px,1.5vw,16px);cursor:pointer}.cell:hover{outline:2px solid #ffd166}.free{color:#6e8298}.block{background:#3b2029;color:#ff7181}.ref{background:#12334f;color:#61adff}.result{background:#123d2f;color:#4be0a0}.status{color:#4be0a0;min-height:24px;margin-top:12px}.info{color:#9bacbf;line-height:1.5}</style>
+</head>
+<body><main><section class="panel"><h1>Autômato de Matrizes</h1><p class="info">Clique em uma célula para adicionar uma referência ♟️. A matriz possui 32×32 células e o motor aplica bloqueios, resultados e transições.</p><div class="toolbar"><label>Camada <select id="z"><option value="0">0</option><option value="1">1</option><option value="2" selected>2</option></select></label><button id="step">Executar passo</button><button id="run">Executar fluxo</button><button id="reset">Resetar</button></div><div id="board" class="board"></div><div id="status" class="status"></div></section></main><script>
+const board=document.querySelector('#board'),status=document.querySelector('#status'),zInput=document.querySelector('#z');let state=null;
+const symbols={0:'▪️',1:'⬜',2:'♟️',3:'❌',4:'🟩'};
+function draw(){if(!state)return;board.innerHTML='';const m=state.matriz;for(let r=0;r<32;r++)for(let c=0;c<32;c++){const e=document.createElement('div');const v=m[r][c];e.className='cell '+(v===2?'ref':v===3?'block':v===4?'result':'free');e.textContent=symbols[v]||'▪️';e.onclick=()=>addRef(r,c);board.appendChild(e)}status.textContent=`camada ${state.camada_visivel} · regra ${state.regra_ativa} · rotação ${state.rotacao}°`}
+async function api(path,options={}){const r=await fetch(path,{headers:{'Content-Type':'application/json'},...options});if(!r.ok)throw new Error(await r.text());return r.json()}
+async function load(){state=await api('/estado');draw()}
+async function addRef(r,c){try{state=await api('/referencias',{method:'POST',body:JSON.stringify({z:+zInput.value,linha:r,coluna:c})});draw()}catch(e){status.textContent=e.message}}
+step.onclick=async()=>{state=(await api('/passo',{method:'POST'})).estado;draw()};run.onclick=async()=>{state=(await api('/executar',{method:'POST',body:JSON.stringify({passos:20})})).estado;draw()};reset.onclick=async()=>{state=await api('/resetar',{method:'POST'});draw()};load();
+</script></body></html>
