@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Game of Life - Nó Trevo</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="overlay">
+    <h1>Game of Life no Nó Trevo</h1>
+    <p>Conway's Game of Life simulado em 3D sobre um nó trevo.</p>
+    <div class="controls">
+      <button id="btnStart">Iniciar</button>
+      <button id="btnPause">Pausar</button>
+      <button id="btnReset">Resetar</button>
+      <label>
+        Velocidade:
+        <input type="range" id="speed" min="1" max="60" value="30" />
+      </label>
+    </div>
+    <p class="hint">Arraste para girar a câmera. Scroll para zoom.</p>
+  </div>
+  <div id="canvas-container"></div>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
+  <script type="module" src="main.js"></script>
+</body>
+</html>
