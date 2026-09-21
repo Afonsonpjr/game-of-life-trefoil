@@ -2,9 +2,9 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 // =========================
-// Configurações
+// Configuraç¡¡ö¡¡¡es
 // =========================
-const N = 40; // grid N x N
+const N = 40;
 const CELL_SIZE = 0.15;
 const TUBE_RADIUS = 0.4;
 const FPS_DEFAULT = 30;
@@ -15,13 +15,43 @@ let running = false;
 let fps = FPS_DEFAULT;
 let lastTime = 0;
 let accumulator = 0;
+let aliveCount = 0;
+let currentTheme = 'classic';
+let currentPattern = 'random';
+
+// Temas de cores
+const themes = {
+  classic: { alive: 0x00ff00, dead: 0x111111, bg: 0x000000 },
+  neon: { alive: 0x00ffff, dead: 0x0a0a0a, bg: 0x000000 },
+  fire: { alive: 0xff4500, dead: 0x1a0a00, bg: 0x050000 },
+  ocean: { alive: 0x00bfff, dead: 0x001a33, bg: 0x00001a },
+  purple: { alive: 0xbf00ff, dead: 0x1a001a, bg: 0x0a000a }
+};
+
+// Padrö¡¡¡es iniciais
+const patterns = {
+  random: (i, j) => Math.random() < 0.15,
+  glider: (i, j) => {
+    const glider = [[0,1],[1,2],[2,0],[2,1],[2,2]];
+    return glider.some(([di,dj]) => i === di && j === dj);
+  },
+  blinker: (i, j) => j === 20 && (i === 19 || i === 20 || i === 21),
+  beacon: (i, j) => {
+    return ((i === 18 || i === 19) && (j === 18 || j === 19)) ||
+           ((i === 21 || i === 22) && (j === 21 || j === 22));
+  },
+  rpentomino: (i, j) => {
+    const r = [[1,2],[2,1],[2,2],[2,3],[3,2]];
+    return r.some(([di,dj]) => i === di && j === dj);
+  }
+};
 
 // =========================
 // Cena Three.js
 // =========================
 const container = document.getElementById('canvas-container');
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x000000);
+scene.background = new THREE.Color(themes[currentTheme].bg);
 
 const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
 camera.position.set(8, 6, 8);
@@ -41,15 +71,13 @@ dirLight.position.set(5, 10, 7);
 scene.add(dirLight);
 
 // =========================
-// Geometria do nó trevo (tubo)
+// Geometria do nó trevo
 // =========================
 function trefoilPoint(t, phi) {
-  // Curva central
   const x0 = Math.sin(t) + 2 * Math.sin(2 * t);
   const y0 = Math.cos(t) - 2 * Math.cos(2 * t);
   const z0 = -Math.sin(3 * t);
 
-  // Derivada numérica para tangente
   const dt = 0.001;
   const x1 = Math.sin(t + dt) + 2 * Math.sin(2 * (t + dt));
   const y1 = Math.cos(t + dt) - 2 * Math.cos(2 * (t + dt));
@@ -61,14 +89,12 @@ function trefoilPoint(t, phi) {
   const normT = Math.sqrt(tx * tx + ty * ty + tz * tz);
   tx /= normT; ty /= normT; tz /= normT;
 
-  // Normal aproximada
-  let nx = ty * 1 - tz * 0;
-  let ny = tz * 1 - tx * 0;
-  let nz = tx * 1 - ty * 0;
+  let nx = ty;
+  let ny = tz;
+  let nz = tx;
   const normN = Math.sqrt(nx * nx + ny * ny + nz * nz) + 1e-8;
   nx /= normN; ny /= normN; nz /= normN;
 
-  // Ponto no tubo
   const X = x0 + TUBE_RADIUS * nx * Math.cos(phi);
   const Y = y0 + TUBE_RADIUS * ny * Math.cos(phi);
   const Z = z0 + TUBE_RADIUS * nz * Math.cos(phi);
@@ -76,7 +102,6 @@ function trefoilPoint(t, phi) {
   return new THREE.Vector3(X, Y, Z);
 }
 
-// Precomputar posições do grid mapeado no tubo
 const positions = [];
 for (let i = 0; i < N; i++) {
   positions[i] = [];
@@ -88,25 +113,38 @@ for (let i = 0; i < N; i++) {
 }
 
 // =========================
-// Células (cubos)
+// Cé¡¡lulas
 // =========================
 const cellGeometry = new THREE.BoxGeometry(CELL_SIZE, CELL_SIZE, CELL_SIZE);
-const cellMaterialAlive = new THREE.MeshStandardMaterial({ color: 0x00ff00, roughness: 0.4 });
-const cellMaterialDead = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.8 });
+let cellMaterialAlive = new THREE.MeshStandardMaterial({ color: themes[currentTheme].alive, roughness: 0.4 });
+let cellMaterialDead = new THREE.MeshStandardMaterial({ color: themes[currentTheme].dead, roughness: 0.8 });
 
 const cellMeshes = [];
 
-function initGrid() {
+function initGrid(pattern = 'random') {
+  // Limpar meshes antigos
+  for (let i = 0; i < N; i++) {
+    for (let j = 0; j < N; j++) {
+      if (cellMeshes[i] && cellMeshes[i][j]) {
+        scene.remove(cellMeshes[i][j]);
+      }
+    }
+  }
+  cellMeshes.length = 0;
+
   grid = [];
   nextGrid = [];
+  aliveCount = 0;
+
   for (let i = 0; i < N; i++) {
     grid[i] = [];
     nextGrid[i] = [];
     cellMeshes[i] = [];
     for (let j = 0; j < N; j++) {
-      const alive = Math.random() < 0.15;
+      const alive = patterns[pattern] ? patterns[pattern](i, j) : Math.random() < 0.15;
       grid[i][j] = alive ? 1 : 0;
       nextGrid[i][j] = 0;
+      if (alive) aliveCount++;
 
       const mesh = new THREE.Mesh(cellGeometry, alive ? cellMaterialAlive : cellMaterialDead);
       mesh.position.copy(positions[i][j]);
@@ -114,10 +152,11 @@ function initGrid() {
       cellMeshes[i][j] = mesh;
     }
   }
+  updateStats();
 }
 
 // =========================
-// Regras do Jogo da Vida (toroidal)
+// Regras do Jogo da Vida
 // =========================
 function countNeighbors(i, j) {
   let sum = 0;
@@ -133,6 +172,7 @@ function countNeighbors(i, j) {
 }
 
 function step() {
+  let newAliveCount = 0;
   for (let i = 0; i < N; i++) {
     for (let j = 0; j < N; j++) {
       const neighbors = countNeighbors(i, j);
@@ -144,9 +184,9 @@ function step() {
       } else {
         nextGrid[i][j] = 0;
       }
+      if (nextGrid[i][j] === 1) newAliveCount++;
     }
   }
-  // Swap
   for (let i = 0; i < N; i++) {
     for (let j = 0; j < N; j++) {
       grid[i][j] = nextGrid[i][j];
@@ -154,10 +194,38 @@ function step() {
       cellMeshes[i][j].material = alive ? cellMaterialAlive : cellMaterialDead;
     }
   }
+  aliveCount = newAliveCount;
+  updateStats();
 }
 
 // =========================
-// Loop de animação
+// UI e Stats
+// =========================
+function updateStats() {
+  const statsEl = document.getElementById('stats');
+  if (statsEl) {
+    statsEl.textContent = `Cé¡¡lulas vivas: ${aliveCount}`;
+  }
+}
+
+function applyTheme(themeName) {
+  currentTheme = themeName;
+  const theme = themes[themeName];
+  scene.background = new THREE.Color(theme.bg);
+  cellMaterialAlive.dispose();
+  cellMaterialDead.dispose();
+  cellMaterialAlive = new THREE.MeshStandardMaterial({ color: theme.alive, roughness: 0.4 });
+  cellMaterialDead = new THREE.MeshStandardMaterial({ color: theme.dead, roughness: 0.8 });
+  for (let i = 0; i < N; i++) {
+    for (let j = 0; j < N; j++) {
+      const alive = grid[i][j] === 1;
+      cellMeshes[i][j].material = alive ? cellMaterialAlive : cellMaterialDead;
+    }
+  }
+}
+
+// =========================
+// Loop
 // =========================
 function animate(time) {
   requestAnimationFrame(animate);
@@ -182,30 +250,26 @@ function animate(time) {
 }
 
 // =========================
-// UI
+// Event Listeners
 // =========================
-document.getElementById('btnStart').addEventListener('click', () => {
-  running = true;
-});
-document.getElementById('btnPause').addEventListener('click', () => {
-  running = false;
-});
+document.getElementById('btnStart').addEventListener('click', () => { running = true; });
+document.getElementById('btnPause').addEventListener('click', () => { running = false; });
 document.getElementById('btnReset').addEventListener('click', () => {
   running = false;
-  // Remove meshes antigos
-  for (let i = 0; i < N; i++) {
-    for (let j = 0; j < N; j++) {
-      scene.remove(cellMeshes[i][j]);
-    }
-  }
-  cellMeshes.length = 0;
-  initGrid();
+  initGrid(currentPattern);
 });
 document.getElementById('speed').addEventListener('input', (e) => {
   fps = parseInt(e.target.value, 10);
 });
+document.getElementById('theme').addEventListener('change', (e) => {
+  applyTheme(e.target.value);
+});
+document.getElementById('pattern').addEventListener('change', (e) => {
+  currentPattern = e.target.value;
+  running = false;
+  initGrid(currentPattern);
+});
 
-// Resize
 window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
@@ -213,5 +277,5 @@ window.addEventListener('resize', () => {
 });
 
 // Init
-initGrid();
+initGrid('random');
 animate(0);
