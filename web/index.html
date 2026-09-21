@@ -18,8 +18,29 @@
         Velocidade:
         <input type="range" id="speed" min="1" max="60" value="30" />
       </label>
+      <label>
+        Tema:
+        <select id="theme">
+          <option value="classic">Classic</option>
+          <option value="neon">Neon</option>
+          <option value="fire">Fire</option>
+          <option value="ocean">Ocean</option>
+          <option value="purple">Purple</option>
+        </select>
+      </label>
+      <label>
+        Padrã¡¡o:
+        <select id="pattern">
+          <option value="random">Random</option>
+          <option value="glider">Glider</option>
+          <option value="blinker">Blinker</option>
+          <option value="beacon">Beacon</option>
+          <option value="rpentomino">R-pentomino</option>
+        </select>
+      </label>
     </div>
-    <p class="hint">Arraste para girar a câmera. Scroll para zoom.</p>
+    <div id="stats">Cé¡¡lulas vivas: 0</div>
+    <p class="hint">Arraste para girar a câ ¡mera. Scroll para zoom.</p>
   </div>
   <div id="canvas-container"></div>
   <script type="importmap">
