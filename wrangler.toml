@@ -1,8 +1,7 @@
-name = "automato-matriz"
+name = "game-of-life-trefoil"
 compatibility_date = "2026-09-20"
 
 [assets]
-directory = "."
-
-[vars]
-DEPLOY_MODE = "static"
+directory = "./web"
+not_found_handling = "404-page"
+html_handling = "auto-trailing-slash"

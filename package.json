@@ -1,0 +1,11 @@
+{
+  "name": "game-of-life-trefoil",
+  "private": true,
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "preview": "wrangler dev"
+  },
+  "devDependencies": {
+    "wrangler": "latest"
+  }
+}
